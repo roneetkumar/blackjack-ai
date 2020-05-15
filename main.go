@@ -90,6 +90,11 @@ func main() {
 		}
 	}
 
+	for dealer.Score() <= 16 || (dealer.Score() == 17 && dealer.MinScore() != 17) {
+		card, cards = draw(cards)
+		dealer = append(dealer, card)
+	}
+
 	pScore, dScore := player.Score(), dealer.Score()
 
 	fmt.Println("--Final Hands--")
