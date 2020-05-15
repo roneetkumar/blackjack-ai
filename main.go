@@ -113,43 +113,16 @@ func Stand(gs GameState) GameState {
 	return state
 }
 
-func main() {
+//EndHand func
+func EndHand(gs GameState) GameState {
 
-	var gs GameState
-	gs = Shuffle(gs)
-	gs = Deal(gs)
+	state := clone(gs)
 
-	var input string
+	pScore, dScore := state.Player.Score(), state.Dealer.Score()
 
-	for gs.State == StatePlayerTurn {
-		fmt.Println("Player:", gs.Player)
-		fmt.Println("Dealer:", gs.Dealer.DealerString())
-		fmt.Println("What wiil you do? (h)it, (s)tand")
-		fmt.Scanf("%s\n", &input)
-
-		switch input {
-		case "h":
-			gs = Hit(gs)
-		case "s":
-			gs = Stand(gs)
-		default:
-			fmt.Println("Invalid option", input)
-		}
-	}
-
-	for gs.State == StateDealerTurn {
-		if gs.Dealer.Score() <= 16 || (gs.Dealer.Score() == 17 && gs.Dealer.MinScore() != 17) {
-			gs = Hit(gs)
-		} else {
-			gs = Stand(gs)
-		}
-	}
-
-	// pScore, dScore := player.Score(), dealer.Score()
-
-	// fmt.Println("--Final Hands--")
-	// fmt.Println("Player:", player, "\nScore:", pScore)
-	// fmt.Println("Dealer:", dealer, "\nScore:", dScore)
+	fmt.Println("--Final Hands--")
+	fmt.Println("Player:", state.Player, "\nScore:", pScore)
+	fmt.Println("Dealer:", state.Dealer, "\nScore:", dScore)
 
 	switch {
 	case pScore > 21:
@@ -163,12 +136,58 @@ func main() {
 	case pScore == dScore:
 		fmt.Println("Draw")
 	}
+
+	fmt.Println()
+
+	state.Player = nil
+	state.Dealer = nil
+
+	return state
+}
+
+func main() {
+
+	var gs GameState
+	gs = Shuffle(gs)
+
+	for i := 0; i < 10; i++ {
+		gs = Deal(gs)
+
+		var input string
+
+		for gs.State == StatePlayerTurn {
+			fmt.Println("Player:", gs.Player)
+			fmt.Println("Dealer:", gs.Dealer.DealerString())
+			fmt.Println("What wiil you do? (h)it, (s)tand")
+			fmt.Scanf("%s\n", &input)
+
+			switch input {
+			case "h":
+				gs = Hit(gs)
+			case "s":
+				gs = Stand(gs)
+			default:
+				fmt.Println("Invalid option", input)
+			}
+		}
+
+		for gs.State == StateDealerTurn {
+			if gs.Dealer.Score() <= 16 || (gs.Dealer.Score() == 17 && gs.Dealer.MinScore() != 17) {
+				gs = Hit(gs)
+			} else {
+				gs = Stand(gs)
+			}
+		}
+
+		gs = EndHand(gs)
+	}
 }
 
 func draw(cards []deck.Card) (deck.Card, []deck.Card) {
 	return cards[0], cards[1:]
 }
 
+// State type
 type State int8
 
 const (
@@ -201,7 +220,7 @@ func (gs *GameState) CurrentPlayer() *Hand {
 func clone(gs GameState) GameState {
 	state := GameState{
 		Deck:   make([]deck.Card, len(gs.Deck)),
-		Turn:   gs.Turn,
+		State:  gs.State,
 		Player: make(Hand, len(gs.Player)),
 		Dealer: make(Hand, len(gs.Dealer)),
 	}
