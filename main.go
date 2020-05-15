@@ -60,50 +60,96 @@ func min(a, b int) int {
 	return b
 }
 
-func main() {
-	cards := deck.New(deck.Deck(3), deck.Shuffle)
+//Shuffle func
+func Shuffle(gs GameState) GameState {
+	state := clone(gs)
+	state.Deck = deck.New(deck.Deck(3), deck.Shuffle)
+	return state
+}
 
-	// var gs GameState
+//Deal func
+func Deal(gs GameState) GameState {
+	state := clone(gs)
 
-	// gs.Deck = deck.New(deck.Deck(3), deck.Shuffle)
+	state.Player = make(Hand, 0, 5)
+	state.Dealer = make(Hand, 0, 5)
 
 	var card deck.Card
 
-	var player, dealer Hand
-
 	for i := 0; i < 2; i++ {
-		for _, hand := range []*Hand{&player, &dealer} {
-			card, cards = draw(cards)
-
-			*hand = append(*hand, card)
-		}
+		card, state.Deck = draw(state.Deck)
+		state.Player = append(state.Player, card)
+		card, state.Deck = draw(state.Deck)
+		state.Dealer = append(state.Dealer, card)
 	}
+
+	state.State = StatePlayerTurn
+
+	return state
+}
+
+// Hit func
+func Hit(gs GameState) GameState {
+	state := clone(gs)
+
+	hand := state.CurrentPlayer()
+
+	var card deck.Card
+
+	card, state.Deck = draw(state.Deck)
+	*hand = append(*hand, card)
+
+	if hand.Score() > 21 {
+		return Stand(state)
+	}
+
+	return state
+}
+
+//Stand func
+func Stand(gs GameState) GameState {
+	state := clone(gs)
+	state.State++
+	return state
+}
+
+func main() {
+
+	var gs GameState
+	gs = Shuffle(gs)
+	gs = Deal(gs)
 
 	var input string
 
-	for input != "s" {
-		fmt.Println("Player:", player)
-		fmt.Println("Dealer:", dealer.DealerString())
+	for gs.State == StatePlayerTurn {
+		fmt.Println("Player:", gs.Player)
+		fmt.Println("Dealer:", gs.Dealer.DealerString())
 		fmt.Println("What wiil you do? (h)it, (s)tand")
 		fmt.Scanf("%s\n", &input)
 
 		switch input {
 		case "h":
-			card, cards = draw(cards)
-			player = append(player, card)
+			gs = Hit(gs)
+		case "s":
+			gs = Stand(gs)
+		default:
+			fmt.Println("Invalid option", input)
 		}
 	}
 
-	for dealer.Score() <= 16 || (dealer.Score() == 17 && dealer.MinScore() != 17) {
-		card, cards = draw(cards)
-		dealer = append(dealer, card)
+	for gs.State == StateDealerTurn {
+		if gs.Dealer.Score() <= 16 || (gs.Dealer.Score() == 17 && gs.Dealer.MinScore() != 17) {
+			gs = Hit(gs)
+		} else {
+			gs = Stand(gs)
+		}
 	}
 
-	pScore, dScore := player.Score(), dealer.Score()
+	// pScore, dScore := player.Score(), dealer.Score()
 
-	fmt.Println("--Final Hands--")
-	fmt.Println("Player:", player, "\nScore:", pScore)
-	fmt.Println("Dealer:", dealer, "\nScore:", dScore)
+	// fmt.Println("--Final Hands--")
+	// fmt.Println("Player:", player, "\nScore:", pScore)
+	// fmt.Println("Dealer:", dealer, "\nScore:", dScore)
 
 	switch {
 	case pScore > 21:
@@ -134,7 +180,7 @@ const (
 //GameState struct
 type GameState struct {
 	Deck   []deck.Card
-	Turn   int
+	State  State
 	Player Hand
 	Dealer Hand
 }
