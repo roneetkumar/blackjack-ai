@@ -63,6 +63,10 @@ func min(a, b int) int {
 func main() {
 	cards := deck.New(deck.Deck(3), deck.Shuffle)
 
+	// var gs GameState
+
+	// gs.Deck = deck.New(deck.Deck(3), deck.Shuffle)
+
 	var card deck.Card
 
 	var player, dealer Hand
@@ -117,4 +121,48 @@ func main() {
 
 func draw(cards []deck.Card) (deck.Card, []deck.Card) {
 	return cards[0], cards[1:]
+}
+
+type State int8
+
+const (
+	StatePlayerTurn State = iota
+	StateDealerTurn
+	StateHandOver
+)
+
+//GameState struct
+type GameState struct {
+	Deck   []deck.Card
+	Turn   int
+	Player Hand
+	Dealer Hand
+}
+
+func (gs *GameState) CurrentPlayer() *Hand {
+	switch gs.State {
+	case StatePlayerTurn:
+		return &gs.Player
+	case StateDealerTurn:
+		return &gs.Dealer
+
+	default:
+		panic("It isn't currently any player's turn")
+
+	}
+}
+
+func clone(gs GameState) GameState {
+	state := GameState{
+		Deck:   make([]deck.Card, len(gs.Deck)),
+		Turn:   gs.Turn,
+		Player: make(Hand, len(gs.Player)),
+		Dealer: make(Hand, len(gs.Dealer)),
+	}
+
+	copy(state.Deck, gs.Deck)
+	copy(state.Player, gs.Player)
+	copy(state.Dealer, gs.Dealer)
+
+	return state
 }
