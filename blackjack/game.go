@@ -1,7 +1,7 @@
 package blackjack
 
 import (
-	"fmt"
+	"errors"
 
 	deck "github.com/roneetkumar/shuffle"
 )
@@ -119,12 +119,23 @@ func (g *Game) Play(ai AI) int {
 
 		bet(g, ai, shuffled)
 		deal(g)
+		if BlackJack(g.dealer...) {
+			endHand(g, ai)
+			continue
+		}
 
 		for g.state == statePlayerTurn {
 			hand := make([]deck.Card, len(g.player))
 			copy(hand, g.player)
 			move := ai.Play(hand, g.dealer[0])
-			move(g)
+			err := move(g)
+
+			switch err {
+			case errBust:
+				MoveStand(g)
+			default:
+				panic(err)
+			}
 		}
 
 		for g.state == stateDealerTurn {
@@ -139,11 +150,15 @@ func (g *Game) Play(ai AI) int {
 	return g.balance
 }
 
+var (
+	errBust = errors.New("hand score exceded 21")
+)
+
 //Move func
-type Move func(*Game)
+type Move func(*Game) error
 
 // MoveHit func
-func MoveHit(g *Game) {
+func MoveHit(g *Game) error {
 	hand := g.currentHand()
 
 	var card deck.Card
@@ -152,13 +167,28 @@ func MoveHit(g *Game) {
 	*hand = append(*hand, card)
 
 	if Score(*hand...) > 21 {
-		MoveStand(g)
+		return errBust
 	}
+
+	return nil
+}
+
+// MoveDouble func
+func MoveDouble(g *Game) error {
+
+	if len(g.player) != 2 {
+		return errors.New("can only double on a habd with 2 cards")
+	}
+
+	g.playerBet *= 2
+	MoveHit(g)
+	return MoveStand(g)
 }
 
 //MoveStand func
-func MoveStand(g *Game) {
+func MoveStand(g *Game) error {
 	g.state++
+	return nil
 }
 
 func draw(cards []deck.Card) (deck.Card, []deck.Card) {
@@ -170,27 +200,30 @@ func endHand(g *Game, ai AI) {
 	pScore, dScore := Score(g.player...), Score(g.dealer...)
 	//TODO: keep track of win/lose
 
+	pBJ, dBJ := BlackJack(g.player...), BlackJack(g.dealer...)
+
 	winnigs := g.playerBet
 
 	switch {
+	case pBJ && dBJ:
+		winnigs = 0
+	case dBJ:
+		winnigs = -winnigs
+	case pBJ:
+		winnigs = int(float64(winnigs) * g.blackJackPayout)
 	case pScore > 21:
-		fmt.Println("You Busted")
 		winnigs = -winnigs
 	case dScore > 21:
-		fmt.Println("Dealer Busted")
+		//win
 	case pScore > dScore:
-		fmt.Println("You Wins")
+		//win
 	case pScore < dScore:
-		fmt.Println("You Lose")
 		winnigs = -winnigs
 	case pScore == dScore:
-		fmt.Println("Draw")
 		winnigs = 0
 	}
 
 	g.balance += winnigs
-
-	fmt.Println()
 
 	ai.Results([][]deck.Card{g.player}, g.dealer)
 
@@ -221,6 +254,11 @@ func Soft(hand ...deck.Card) bool {
 	minScore := minScore(hand...)
 	score := Score(hand...)
 	return minScore != score
+}
+
+//BlackJack return true if a hand is a blackjack
+func BlackJack(hand ...deck.Card) bool {
+	return len(hand) == 2 && Score(hand...) == 21
 }
 
 func minScore(hand ...deck.Card) int {

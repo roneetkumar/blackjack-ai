@@ -9,7 +9,7 @@ import (
 func main() {
 	opts := blackjack.Options{
 		Decks:           3,
-		Hands:           2,
+		Hands:           1,
 		BlackJackPayout: 1.5,
 	}
 
